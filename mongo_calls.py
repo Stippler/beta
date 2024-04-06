@@ -37,28 +37,39 @@ async def ping_server():
         print(e)
     
 
-# Database operations
-async def add_task(username : str, task_data: dict) -> dict:
-    task_collection = get_task_collection(username)
+async def add_task(task_data: dict) -> dict:
+    task_collection = get_task_collection("jpassweg")
     task = await task_collection.insert_one(task_data)
     print("result %s" % repr(task.inserted_id))
     new_task = await task_collection.find_one({"_id": task.inserted_id})
     return new_task
 
 
-async def retrieve_tasks(username : str) -> List[dict]:
-    task_collection = get_task_collection(username)
+async def retrieve_tasks() -> List[dict]:
+    task_collection = get_task_collection("jpassweg")
     tasks = []
-    async for task in task_collection.find():
-        tasks.append(task)
+    async for task_data in task_collection.find():
+        tasks.append(task_data)
     return tasks
 
 
-async def delete_task(username : str, task : dict) -> bool:
-    task_collection = get_task_collection(username)
+async def update_task(task_data : dict) -> bool:
+    task_collection = get_task_collection("jpassweg")
     coll = task_collection
     n = await coll.count_documents({})
-    result = await task_collection.delete_one(task)
+    result = await task_collection.delete_one({"taskID" : task_data["taskID"]})
+    task = await task_collection.insert_one(task_data)
+    print("result %s" % repr(task.inserted_id))
+    new_task = await task_collection.find_one({"_id": task.inserted_id})
+    return new_task is not None and result.deleted_count > 0
+    
+    
+
+async def delete_task(id : int) -> bool:
+    task_collection = get_task_collection("jpassweg")
+    coll = task_collection
+    n = await coll.count_documents({})
+    result = await task_collection.delete_one({"taskID" : id})
     return result.deleted_count > 0
     
 

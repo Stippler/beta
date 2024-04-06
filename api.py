@@ -8,7 +8,7 @@ import os
 import json
 from datetime import datetime
 
-from mongo_calls import add_task, retrieve_tasks, delete_task  # Ensure mongo_calls.py is accessible
+import mongo_calls as db
 
 unique_id = 5
 
@@ -27,7 +27,7 @@ default_task = {
     "endTime": "HH:MM",
     "activity": "choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other",
     "description": "Short description of the event or activity.",
-#    "location": "Example location",
+#   "location": "Example location",
     "latitude": "Latitude",
     "longitude": "Longitude",
     "sheltered": "Boolean",
@@ -53,7 +53,7 @@ class Task(BaseModel):
     endTime: str
     activity: str
     description: str
-#    location: str
+#   location: str
     latitude: float
     longitude: float
     sheltered: bool
@@ -69,43 +69,38 @@ class TextRequest(BaseModel):
 class TextListRequest(BaseModel):
     texts: List[str]
 
-# In-memory storage
-tasks = []
-weather_data = []  # Placeholder for weather data
-
 @app.get("/")
 async def read_root():
     return {"message": "Hello World"}
 
 # Endpoints
-@app.post("/task/{username}", response_description="Add new task", response_model=Task)
-async def create_task(username : str, task: Task):
-    task = await add_task(username, task.model_dump())
+@app.post("/task/", response_description="Add new task", response_model=Task)
+async def create_task(task: Task):
+    task = await db.add_task(task.model_dump())
     if task is not None:
         return task
     raise HTTPException(status_code=500, detail="Task could not be created")
 
 
-@app.get("/tasks/{username}", response_description="List all tasks", response_model=List[Task])
-async def list_tasks(username : str):
-    tasks = await retrieve_tasks(username)
+@app.get("/task/", response_description="List all tasks", response_model=List[Task])
+async def list_tasks():
+    tasks = await db.retrieve_tasks()
     if tasks is not None:
         return tasks
     raise HTTPException(status_code=500, detail="Error retrieving tasks list")
 
 
-@app.put("/task/{username}", response_description="Update a task")
-async def update_task(username : str, old_task: Task, new_task: Task):
-    deleted_task = await delete_task(username, old_task.model_dump())
-    task = await add_task(new_task.model_dump())
-    if deleted_task is not None and task is not None:
+@app.put("/task/", response_description="Update a task")
+async def update_task(new_task: Task):
+    task = await db.update_task(new_task.model_dump())
+    if task is not None:
         return task
     raise HTTPException(status_code=500, detail="Task could not be replaced")
 
 
-@app.put("/task/{username}", response_description="Delete a task")
-async def delete_task(username : str, old_task: Task):
-    deleted_task = await delete_task(username, old_task.model_dump())
+@app.put("/task/{id}", response_description="Delete a task")
+async def delete_task(id : int):
+    deleted_task = await db.delete_task(id)
     if deleted_task is not None:
         return deleted_task
     raise HTTPException(status_code=500, detail="Task could not be deleted")
@@ -119,6 +114,7 @@ async def analyze_text_list(text_request: TextListRequest):
         result = await analyze_text(line)
         results.append(result)
     return {results}
+
 
 @app.post("/text/")
 async def analyze_text(text_request: TextRequest):
@@ -157,6 +153,7 @@ async def analyze_text(text_request: TextRequest):
     completion_message_content = completion.choices[0].message.content
     extracted_json = json.loads(completion_message_content)
     return {"result": extracted_json}
+
 
 @app.post("/propose/")
 async def propose_new_date(old_text: dict, new_proposed_date: dict):
@@ -201,12 +198,14 @@ async def get_weather(weather_request: WeatherRequest):
     # For demonstration, it returns an empty list
     return {}
 
+
 @app.post("/ok/")
 async def check_weather_ok(weather_request: WeatherRequest):
     # Placeholder for logic to determine if weather is OK for an event
     # This could check if it will rain and decide based on that
     # For now, returns "yes" by default
     return {"result": "yes"}
+
 
 # Main for running with Uvicorn
 if __name__ == "__main__":
