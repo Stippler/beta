@@ -71,7 +71,7 @@ class IntermidiateTask(BaseModel):
     sheltered: str
     
 class UpdateTextRequest(BaseModel):
-    task: IntermidiateTask
+    task: Optional[IntermidiateTask] = None
     messages: List[str]
 
 class WeatherRequest(BaseModel):
