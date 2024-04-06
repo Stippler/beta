@@ -112,37 +112,21 @@ def get_weather_data(x, y, from_date, to_date):
 
     date_value = get_dates(from_date, url)
 
-    #use chatgpt to filter parameters here
-
     params = {
-        'coords': (x,y),
+        'coords': f'POINT({y} {x})',
         'datetime': date_value.strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'parameter-names': ','.join(parameters)
     }
 
-    # Sending a GET request with parameters
-    response = requests.get(url, params=params)
-
     try:
-        response = requests.get(url)
-        # Specify the file path
-        file_path = "output.txt"
-
-        # Open the file in write mode and write the string to it
-        with open(file_path, 'w') as file:
-            file.write(json.dumps(response.json()))
-        print(response.json())
+        # Sending a GET request with parameters
+        response = requests.get(url + '/position', params=params)
         if response.status_code == 200:
-            entries =  list(map(lambda x: extract_relevant_info(x),response.json()['coverages']))
-            # Convert the list of dictionaries to a DataFrame
-            df = pd.DataFrame(entries)
-
-            # Pivot the DataFrame
-            df_pivot = df.pivot_table(index='time', columns='parameter', values='value', aggfunc='first')
-
-            # Reset index to make 'time' a column again
-            df_pivot.reset_index(inplace=True)
-            return df_pivot
+            #response = requests.get(url)
+            temp =  response.json()
+            gen_info = temp['parameters']
+            values = list(map(lambda x: x['ranges'],temp['coverages']))
+            values = {list(value.keys())[0]:list(value.values())[0] for value in values}
+            return {param: {'unit':gen_info[param]['unit']['symbol'], 'description':gen_info[param]['observedProperty']['label']['en'], 'value': values[param]['values'][0]} for param in parameters}
         else:
             print(f"Failed to fetch data. Status code: {response.status_code}")
             return None
