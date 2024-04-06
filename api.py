@@ -43,6 +43,7 @@ app.add_middleware(
 
 # Models
 class Task(BaseModel):
+    taskId: Optional[int] = None
     title: str
     date: str
     startTime: str
@@ -190,6 +191,8 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         # Iterate over key, value pairs in the first dictionary
         for key, value in extracted_json.items():
             # Check if the key is in the second dictionary and has a different value
+            if key=="taskId":
+                continue
             if extracted_json[key] == "EMPTY":
                 result[key] = "PLEASE FILL OUT!"
                 success = False
