@@ -258,18 +258,18 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             
     try:
         final_result["task"]["latitude"] = float(final_result["task"]["latitude"])
-    except ValueError:
+    except:
         final_result["task"]["latitude"] = 2.3
         
     try:
         final_result["task"]["longitude"] = float(final_result["task"]["longitude"])
-    except ValueError:
+    except:
         final_result["task"]["longitude"] = 2.3
         
     try:
-        final_result["task"]["TaskId"] = int(final_result["task"]["TaskId"])
-    except ValueError:
-        final_result["task"]["TaskId"] = 7
+        final_result["task"]["taskId"] = int(final_result["task"]["taskId"])
+    except:
+        final_result["task"]["taskId"] = 7
     
     return final_result
 
