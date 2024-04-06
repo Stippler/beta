@@ -85,7 +85,7 @@ async def create_task(task: Task):
 
 @app.post("/task/many/", response_description="Add new tasks")
 async def create_task(task_list: List [Task]):
-    task = await db.add_multiple_tasks(task_list.model_dump())
+    task = await db.add_multiple_tasks([t.model_dump() for t in task_list])
     raise HTTPException(status_code=500, detail="Task could not be created")
 
 
