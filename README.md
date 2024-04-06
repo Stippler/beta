@@ -1,56 +1,59 @@
-# Calendar App API
+# Wheather or not
 
-This FastAPI application serves as the backend for a calendar app, enabling the creation and management of tasks/events with consideration for weather conditions. It's designed to quickly set up an extendable API for a hackathon project using Next.js for the frontend.
+This FastAPI application provides a backend service for managing and analyzing events, tasks, and schedules. It integrates with OpenAI's API for text analysis and uses MongoDB for data persistence. The application supports CRUD operations for tasks, text analysis for extracting event details from text, and proposing new event times based on given inputs.
 
 ## Features
 
-- Create tasks with title, timeframe, and location.
-- List all created tasks.
-- Analyze natural text for task creation feasibility.
-- Retrieve weather data based on longitude, latitude, and timeframe.
-- Check if the weather conditions are suitable for the scheduled tasks.
+- **Task Management:** Create, read, update, and delete tasks or events.
+- **Text Analysis:** Analyze text to extract and structure event details using OpenAI's API.
+- **Date Proposal:** Suggest new event times based on the analysis of provided details.
+- **Weather Check:** Placeholder endpoints for weather-related functionalities (to be implemented).
+
+## Installation
+
+1. Clone the repository to your local machine.
+2. Ensure you have Python 3.8+ installed.
+3. Install dependencies:
+
+```
+pip install -r requirements.txt
+```
+
+4. Set up your `.env` file in the root of the project with your OpenAI API key and Mongo DB key:
+
+## Running the Application
+
+Run the application using Uvicorn:
+
+```
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+This will start the server on `localhost:8000`.
 
 ## Endpoints
 
-- `POST /task/`: Create a new task.
-    - Input: `{ "title": "string", "timeframe": "string", "location": "string" }`
-    - Output: `{"result": "yes/no"}`
-- `GET /task/`: List all tasks.
-    - Output: List of tasks.
-- `POST /text/`: Analyze natural text for task creation.
-    - Input: `{ "text": "string" }`
-    - Output: `{"result": "yes/no"}`
-- `POST /weather/`: Get weather data for a location and timeframe.
-    - Input: `{ "longitude": float, "latitude": float, "timeframe": "string" }`
-    - Output: List of `{"temperature": float, "humidity": float}`
-- `POST /ok/`: Check if weather conditions are suitable for the event.
-    - Input: `{ "longitude": float, "latitude": float, "timeframe": "string" }`
-    - Output: `{"result": "yes/no"}`
+- **GET /**: Returns a hello message.
+- **POST /task/**: Adds a new task.
+- **GET /task/**: Lists all tasks.
+- **PUT /task/**: Updates a task.
+- **PUT /task/{id}**: Deletes a task.
+- **POST /text/**: Analyzes text to fill out a predefined event template.
+- **POST /text_list/**: Analyzes a list of texts.
+- **POST /propose/**: Proposes a new date for an event.
+- **POST /weather/**: Placeholder for fetching weather data.
+- **POST /ok/**: Placeholder for checking if the weather is suitable for an event.
 
-## Setup and Run
+## Models
 
-1. **Install Dependencies**:
-   - Ensure you have Python installed on your system.
-   - Install FastAPI and Uvicorn with pip:
-     ```
-     pip install fastapi uvicorn
-     ```
+- **Task**: Represents an event or task with details like title, date, and activity type.
+- **WeatherRequest**: Used for weather-related endpoints (to be implemented).
+- **TextRequest**: Contains text for analysis.
+- **TextListRequest**: Contains a list of texts for analysis.
 
-2. **Running the Application**:
-   - Save the provided API script as `api.py`.
-   - Start the server using Uvicorn:
-     ```
-     uvicorn api:app --reload
-     ```
-   - The API will be available at `http://localhost:8000`.
+## Note
 
-## Extending the API
-
-To further develop this API for a production environment, consider the following:
-
-- **Weather API Integration**: Implement real-time weather data fetching from a service like OpenWeatherMap for the `/weather` and `/ok` endpoints.
-- **NLP for Text Analysis**: Use libraries like NLTK or SpaCy, or external services for analyzing natural text in the `/text` endpoint.
-- **Database Integration**: Replace the in-memory storage with a database solution for persistent data management.
+This application is a template and requires further development for full functionality, especially for weather-related features which are currently placeholders.
 
 ## Collaboration
 
