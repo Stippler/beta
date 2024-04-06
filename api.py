@@ -8,6 +8,7 @@ import os
 import json
 from datetime import datetime
 
+from mongo_calls import add_task, retrieve_tasks, delete_task  # Ensure mongo_calls.py is accessible
 
 # Load environment variables
 # Your key needs to be in the .env file in the root of the project, like this: OPENAI_API_KEY='<your key>'
@@ -53,25 +54,31 @@ class WeatherRequest(BaseModel):
 class TextRequest(BaseModel):
     text: str
 
-# In-memory storage
-tasks = []
-weather_data = []  # Placeholder for weather data
-
-@app.get("/")
-async def read_root():
-    return {"message": "Hello World"}
 
 # Endpoints
-@app.post("/task/")
-async def create_task(task: Task):
-    tasks.append(task)
-    # Placeholder for logic to determine if task is well placed
-    # For now, returns "yes" by default
-    return {"result": "yes"}
+@app.post("/task/{username}", response_description="Add new task", response_model=Task)
+async def create_task(username : str, task: Task):
+    task = await add_task(username, task.model_dump())
+    if task is not None:
+        return task
+    raise HTTPException(status_code=500, detail="Task could not be created")
 
-@app.get("/task/")
-async def list_tasks():
-    return tasks
+
+@app.get("/tasks/{username}", response_description="List all tasks", response_model=List[Task])
+async def list_tasks(username : str):
+    tasks = await retrieve_tasks(username)
+    if tasks is not None:
+        return tasks
+    raise HTTPException(status_code=500, detail="Error retrieving tasks list")
+
+
+@app.put("/task/{username}", response_description="Update a task")
+async def update_task(username : str, old_task: Task, new_task: Task):
+    deleted_task = await delete_task(username, old_task.model_dump())
+    task = await add_task(new_task.model_dump())
+    if deleted_task is not None and task is not None:
+        return task
+    raise HTTPException(status_code=500, detail="Task could not be replaced")
 
 @app.post("/text/")
 async def analyze_text(text_request: TextRequest):
@@ -114,7 +121,7 @@ async def get_weather(weather_request: WeatherRequest):
     # Placeholder for fetching weather data based on location and timeframe
     # You should replace this with a call to a real weather API
     # For demonstration, it returns an empty list
-    return weather_data
+    return {}
 
 @app.post("/ok/")
 async def check_weather_ok(weather_request: WeatherRequest):
