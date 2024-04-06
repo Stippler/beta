@@ -160,7 +160,7 @@ async def analyze_text(text_request: TextRequest):
         raise HTTPException(status_code=500, detail=str(e))
     completion_message_content = completion.choices[0].message.content
     extracted_json = json.loads(completion_message_content)
-    return {extracted_json}
+    return extracted_json
 
 
 @app.post("/propose")
