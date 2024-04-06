@@ -18,16 +18,15 @@ client = OpenAI(
 
 default_task = {
   "title": "Example Event Title",
-  "activity": "1-word noun activity type",
-  "date": "dd/mm/yyyy",
+  "activity": "1 noun that describes activity type",
+  "date": "YYYY-MM-DD",
   "from": "HH:MM",
   "to": "HH:MM",
   "description": "Short description of the event or activity.",
-  "city": "Example City",
+  "location_text": "Example location",
   "location_gps": "Latitude, Longitude",
   "sheltered": "Boolean",
 }
-
 app = FastAPI()
 
 # Set up CORS middleware

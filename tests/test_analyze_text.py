@@ -17,6 +17,6 @@ def test_analyze_text():
     assert result_data["date"] == "06/04/2024"
     assert result_data["from"] == "17:00"
     assert result_data["to"] == "18:00"
-    assert result_data["city"] == "Kosice"
+    assert result_data["location_text"] == "Kosice"
     assert "location_gps" in result_data
     assert result_data["sheltered"] is False  # Depending on what you expect
