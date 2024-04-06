@@ -19,7 +19,7 @@ client = OpenAI(
 default_task = {
   "title": "Example Event Title",
   "activity": "1 noun that describes activity type",
-  "date": "YYYY-MM-DD",
+  "date": "dd/mm/yyyy",
   "from": "HH:MM",
   "to": "HH:MM",
   "description": "Short description of the event or activity.",
@@ -75,7 +75,7 @@ async def create_task(task: Task):
 async def list_tasks():
     return tasks
 
-@app.get("/text_list/")
+@app.post("/text_list/")
 async def list_texts(textlistrequest: TextListRequest):
     """
     Analyzes a list of texts and uses the /text/ endpoint to extract information from each text and return it as a list in json format.
@@ -114,7 +114,7 @@ async def analyze_text(text_request: TextRequest):
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will keep the example value of the template. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
-                {"role": "user", "content": "Today I want to go for a 1-hour walk at 17 pm in a park that is 5 minutes away from my home in Kosice"},
+                {"role": "user", "content": f"{text_request.text}"},
                 {"role": "system", "content": f"The template is: {template_str}"} 
             ]
         )
