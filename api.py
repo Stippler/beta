@@ -98,7 +98,7 @@ async def update_task(new_task: Task):
     raise HTTPException(status_code=500, detail="Task could not be replaced")
 
 
-@app.put("/task/", response_description="Delete a task")
+@app.put("/task/{id}", response_description="Delete a task")
 async def delete_task(id : int):
     deleted_task = await db.delete_task(id)
     if deleted_task is not None:
