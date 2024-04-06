@@ -29,17 +29,8 @@ default_task = {
     "latitude": "Latitude",
     "longitude": "Longitude",
     "sheltered": "Boolean",
-template = {
-  "title": "Example Event Title",
-  "activity": "1-word activity type",
-  "date": "dd/mm/yyyy",
-  "from": "HH:MM",
-  "to": "HH:MM",
-  "description": "Short description of the event or activity.",
-  "city": "Example City",
-  "location_gps": "Latitude, Longitude",
-  "sheltered": "Boolean",
 }
+
 app = FastAPI()
 
 # Set up CORS middleware
@@ -100,6 +91,15 @@ async def update_task(username : str, old_task: Task, new_task: Task):
     if deleted_task is not None and task is not None:
         return task
     raise HTTPException(status_code=500, detail="Task could not be replaced")
+
+
+@app.put("/task/{username}", response_description="Delete a task")
+async def delete_task(username : str, old_task: Task):
+    deleted_task = await delete_task(username, old_task.model_dump())
+    if deleted_task is not None:
+        return deleted_task
+    raise HTTPException(status_code=500, detail="Task could not be deleted")
+
 
 @app.post("/text/")
 async def analyze_text(text_request: TextRequest):
