@@ -18,7 +18,7 @@ client = OpenAI(
 
 default_task = {
   "title": "Example Event Title",
-  "activity": "1 noun that describes activity type",
+  "activity": "choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other",
   "date": "dd/mm/yyyy",
   "from": "HH:MM",
   "to": "HH:MM",
