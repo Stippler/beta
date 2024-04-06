@@ -10,8 +10,6 @@ from datetime import datetime
 
 import mongo_calls as db
 
-unique_id = 5
-
 # Load environment variables
 # Your key needs to be in the .env file in the root of the project, like this: OPENAI_API_KEY='<your key>'
 load_dotenv()
@@ -20,7 +18,7 @@ client = OpenAI(
 )
 
 default_task = {
-    "taskId": "unique_id",
+#   "taskId": "unique_id",
     "title": "Example Event Title",
     "date": "dd/mm/yyyy",
     "startTime": "HH:MM",
@@ -28,9 +26,9 @@ default_task = {
     "activity": "choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other",
     "description": "Short description of the event or activity.",
 #   "location": "Example location",
-    "latitude": "Latitude",
-    "longitude": "Longitude",
-    "sheltered": "Boolean",
+    "latitude": "Float describing the Latitude the event will take place",
+    "longitude": "Float describing Longitude the event will take place",
+    "sheltered": "Boolean describing if the event takes place in a sheltered place or not"
 }
 
 app = FastAPI()
@@ -58,6 +56,19 @@ class Task(BaseModel):
     longitude: float
     sheltered: bool
 
+
+class IntermidiateTask(BaseModel):
+#   taskId: int
+    title: str
+    date: str
+    startTime: str
+    endTime: str
+    activity: str
+    description: str
+#   location: str
+    latitude: str
+    longitude: str
+    sheltered: str
 
 class WeatherRequest(BaseModel):
     longitude: float
@@ -140,18 +151,25 @@ async def analyze_text(text_request: TextRequest):
       filled according to the predefined template. This includes fields for title, time, location, and sheltered status,
       structured based on the input text's analysis.
       
+    Return Format:
+    {
+        sucess: bool
+        task: {}
+        message: ""
+    }
+      
     Raises:
     - HTTPException: An error response with status code 500 if there is an issue with the OpenAI API call.
     """
     template_str = json.dumps(default_task)
-    global unique_id
-    unique_id += 1
+    
+    # initial try
     try:
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. If you are unsure about any value, fill in your best guess. Make sure to fill in every single value and return valid json. Today is {datetime.now().strftime('%Y-%m-%d')} and use the taskId {unique_id}."},
+                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
                 {"role": "user", "content": f"{text_request.text}"},
                 {"role": "system", "content": f"The template is: {template_str}"} 
             ]
@@ -160,7 +178,42 @@ async def analyze_text(text_request: TextRequest):
         raise HTTPException(status_code=500, detail=str(e))
     completion_message_content = completion.choices[0].message.content
     extracted_json = json.loads(completion_message_content)
-    return extracted_json
+    
+    success = True
+    
+    result = {}
+    # Iterate over key, value pairs in the first dictionary
+    for key, value in extracted_json.items():
+        # Check if the key is in the second dictionary and has a different value
+        if extracted_json[key] == "EMPTY":
+            result[key] = "PLEASE FILL OUT!"
+            success = False
+        else:
+            result[key] = value
+    
+    # analysis
+    try:
+        analysis = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a not completely filled json template. The unfilled entries are marked with 'PLEASE FILL OUT!'. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time!"},
+                {"role": "system", "content": f"The template is: {result}"} 
+            ]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    analysis_message_content = analysis.choices[0].message.content
+    
+    final_result = {}
+    final_result["success"] = success
+    final_result["task"] = result
+    final_result["message"] = analysis_message_content
+    
+    return final_result
+
+@app.post("/text-update")
+async def analyze_text(inter_task: IntermidiateTask, text_request: TextRequest):
+    return {}
 
 
 @app.post("/propose")
