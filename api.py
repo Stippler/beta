@@ -120,7 +120,8 @@ async def analyze_text_list(text_request: TextListRequest):
         line = TextRequest(text=text)
         result = await analyze_text(line)
         results.append(result)
-    return {results}
+    print(results)
+    return results
 
 
 @app.post("/text")
