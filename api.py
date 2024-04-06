@@ -18,7 +18,6 @@ client = OpenAI(
 )
 
 default_task = {
-    "taskId": "7",
     "title": "Example Event Title",
     "date": "dd/mm/yyyy",
     "startTime": "HH:MM",
@@ -58,7 +57,6 @@ class Task(BaseModel):
 
 
 class IntermidiateTask(BaseModel):
-    taskId: Optional[int] = None
     title: str
     date: str
     startTime: str
@@ -258,18 +256,13 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             
     try:
         final_result["task"]["latitude"] = float(final_result["task"]["latitude"])
-    except ValueError:
+    except:
         final_result["task"]["latitude"] = 2.3
         
     try:
         final_result["task"]["longitude"] = float(final_result["task"]["longitude"])
-    except ValueError:
+    except:
         final_result["task"]["longitude"] = 2.3
-        
-    try:
-        final_result["task"]["taskId"] = int(final_result["task"]["taskId"])
-    except ValueError:
-        final_result["task"]["taskId"] = 7
     
     return final_result
 
