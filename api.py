@@ -211,7 +211,7 @@ async def analyze_text(text_request: TextRequest):
     return final_result
 
 @app.post("/text-update")
-async def analyze_text(inter_task: IntermidiateTask, text_request: TextRequest):
+async def analyze_text(inter_task: Union[IntermidiateTask, TextRequest]):
     return {}
 
 
