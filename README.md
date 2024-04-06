@@ -26,7 +26,7 @@ pip install -r requirements.txt
 Run the application using Uvicorn:
 
 ```
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn api:app --reload --host 0.0.0.0 --port 8000
 ```
 
 This will start the server on `localhost:8000`.
