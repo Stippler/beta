@@ -45,6 +45,12 @@ async def add_task(task_data: dict) -> dict:
     return new_task
 
 
+async def add_multiple_tasks(task_data: List [dict]) -> bool:
+    task_collection = get_task_collection("jpassweg")
+    task = await task_collection.insert_many(task_data)
+    return task is not None
+
+
 async def retrieve_tasks() -> List[dict]:
     task_collection = get_task_collection("jpassweg")
     tasks = []

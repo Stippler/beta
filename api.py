@@ -46,7 +46,7 @@ app.add_middleware(
 
 # Models
 class Task(BaseModel):
-    taskID: int
+    taskId: int
     title: str
     date: str
     startTime: str
@@ -57,6 +57,7 @@ class Task(BaseModel):
     latitude: float
     longitude: float
     sheltered: bool
+
 
 class WeatherRequest(BaseModel):
     longitude: float
@@ -79,6 +80,12 @@ async def create_task(task: Task):
     task = await db.add_task(task.model_dump())
     if task is not None:
         return task
+    raise HTTPException(status_code=500, detail="Task could not be created")
+
+
+@app.post("/task/many/", response_description="Add new tasks")
+async def create_task(task_list: List [Task]):
+    task = await db.add_multiple_tasks(task.model_dump())
     raise HTTPException(status_code=500, detail="Task could not be created")
 
 
