@@ -200,18 +200,22 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         task = result
     
     # initial try
-    try:
-        completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            response_format={ "type": "json_object" },
-            messages=[
-                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'dd/mm/yyyy'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'. sheltered is a boolean representing if the event is at a sheltered place"},
-                {"role": "user", "content": f"{chat[-2] + chat[-1]}"},
-                {"role": "system", "content": f"The template is: {task}"} 
-            ]
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    #try:
+    if len(chat)>1:
+        user_message = chat[-2]+chat[-1]
+    else:
+        user_message = chat[0]
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        response_format={ "type": "json_object" },
+        messages=[
+            {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'dd/mm/yyyy'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'"},
+            {"role": "user", "content": f"{user_message}"},
+            {"role": "system", "content": f"The template is: {task}"} 
+        ]
+    )
+    #except Exception as e:
+    #    raise HTTPException(status_code=500, detail=str(e))
     completion_message_content = completion.choices[0].message.content
     extracted_json = json.loads(completion_message_content)
     
