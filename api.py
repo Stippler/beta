@@ -178,7 +178,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
                 response_format={ "type": "json_object" },
                 messages=[
                     {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
-                    {"role": "user", "content": f"{chat[0].text}"},
+                    {"role": "user", "content": f"{chat[0]}"},
                     {"role": "system", "content": f"The template is: {template_str}"} 
                 ]
             )
@@ -208,8 +208,8 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'dd/mm/yyyy'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'"},
-                {"role": "user", "content": f"{chat.text_list[-2] + chat.text_list[-1]}"},
-                {"role": "system", "content": f"The template is: {task.model_dump()}"} 
+                {"role": "user", "content": f"{chat[-2] + chat[-1]}"},
+                {"role": "system", "content": f"The template is: {task}"} 
             ]
         )
     except Exception as e:
