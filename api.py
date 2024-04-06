@@ -17,15 +17,17 @@ client = OpenAI(
 )
 
 default_task = {
-  "title": "Example Event Title",
-  "activity": "choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other",
-  "date": "dd/mm/yyyy",
-  "from": "HH:MM",
-  "to": "HH:MM",
-  "description": "Short description of the event or activity.",
-  "location_text": "Example location",
-  "location_gps": "Latitude, Longitude",
-  "sheltered": "Boolean",
+    "taskId": "unique_id",
+    "title": "Example Event Title",
+    "date": "dd/mm/yyyy",
+    "from": "HH:MM",
+    "to": "HH:MM",
+    "activity": "choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other",
+    "description": "Short description of the event or activity.",
+#    "location": "Example location",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "sheltered": "Boolean",
 }
 app = FastAPI()
 
