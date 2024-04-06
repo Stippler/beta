@@ -10,6 +10,8 @@ from datetime import datetime
 
 from mongo_calls import add_task, retrieve_tasks, delete_task  # Ensure mongo_calls.py is accessible
 
+unique_id = 5
+
 # Load environment variables
 # Your key needs to be in the .env file in the root of the project, like this: OPENAI_API_KEY='<your key>'
 load_dotenv()
@@ -21,8 +23,8 @@ default_task = {
     "taskId": "unique_id",
     "title": "Example Event Title",
     "date": "dd/mm/yyyy",
-    "from": "HH:MM",
-    "to": "HH:MM",
+    "startTime": "HH:MM",
+    "endTime": "HH:MM",
     "activity": "choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other",
     "description": "Short description of the event or activity.",
 #    "location": "Example location",
@@ -44,9 +46,17 @@ app.add_middleware(
 
 # Models
 class Task(BaseModel):
+    taskID: int
     title: str
-    timeframe: str
-    location: str
+    date: str
+    startTime: str
+    endTime: str
+    activity: str
+    description: str
+#    location: str
+    latitude: float
+    longitude: float
+    sheltered: bool
 
 class WeatherRequest(BaseModel):
     longitude: float
@@ -101,6 +111,15 @@ async def delete_task(username : str, old_task: Task):
     raise HTTPException(status_code=500, detail="Task could not be deleted")
 
 
+@app.post("/text_list/")
+async def analyze_text_list(text_request: TextListRequest):
+    results = []
+    for text in text_request.texts:
+        line = TextRequest(text=text)
+        result = await analyze_text(line)
+        results.append(result)
+    return {results}
+
 @app.post("/text/")
 async def analyze_text(text_request: TextRequest):
     """
@@ -121,12 +140,14 @@ async def analyze_text(text_request: TextRequest):
     - HTTPException: An error response with status code 500 if there is an issue with the OpenAI API call.
     """
     template_str = json.dumps(default_task)
+    global unique_id
+    unique_id += 1
     try:
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will keep the example value of the template. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
+                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will keep the example value of the template. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')} and use the taskId {unique_id}."},
                 {"role": "user", "content": f"{text_request.text}"},
                 {"role": "system", "content": f"The template is: {template_str}"} 
             ]
