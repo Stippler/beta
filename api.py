@@ -46,7 +46,7 @@ app.add_middleware(
 
 # Models
 class Task(BaseModel):
-    taskID: int
+    taskId: int
     title: str
     date: str
     startTime: str
@@ -58,6 +58,7 @@ class Task(BaseModel):
     longitude: float
     sheltered: bool
 
+
 class WeatherRequest(BaseModel):
     longitude: float
     latitude: float
@@ -67,7 +68,7 @@ class TextRequest(BaseModel):
     text: str
 
 class TextListRequest(BaseModel):
-    texts: List[str]
+    text: str
 
 @app.get("/")
 async def read_root():
@@ -79,6 +80,12 @@ async def create_task(task: Task):
     task = await db.add_task(task.model_dump())
     if task is not None:
         return task
+    raise HTTPException(status_code=500, detail="Task could not be created")
+
+
+@app.post("/task/many/", response_description="Add new tasks")
+async def create_task(task_list: List [Task]):
+    task = await db.add_multiple_tasks(task_list.model_dump())
     raise HTTPException(status_code=500, detail="Task could not be created")
 
 
@@ -109,7 +116,7 @@ async def delete_task(id : int):
 @app.post("/text_list")
 async def analyze_text_list(text_request: TextListRequest):
     results = []
-    for text in text_request.texts:
+    for text in text_request.text.split('\n'):
         line = TextRequest(text=text)
         result = await analyze_text(line)
         results.append(result)
