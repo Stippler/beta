@@ -2,6 +2,26 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Union, List, Optional 
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+import json
+from datetime import datetime
+
+
+# Load environment variables
+# Your key needs to be in the .env file in the root of the project, like this: OPENAI_API_KEY='<your key>'
+load_dotenv()
+client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+)
+
+template = {
+  "title": "String",
+  "time": "dd/mm/yyyy hh:mm",
+  "location": "City",
+  "sheltered": "Boolean",  
+}
 
 app = FastAPI()
 
@@ -50,9 +70,39 @@ async def list_tasks():
 
 @app.post("/text/")
 async def analyze_text(text_request: TextRequest):
-    # Placeholder for natural text analysis
-    # For now, returns "yes" by default
-    return {"result": "yes"}
+    """
+    Analyzes the input text and extracts information to fill out a predefined template.
+    
+    This endpoint takes a JSON object containing a "text" field, which is passed to the OpenAI API. The response
+    from OpenAI, structured according to the specified template, is then returned as a JSON object.
+    
+    Parameters:
+    - text_request (TextRequest): A request model containing the "text" field with the input sentence or paragraph.
+    
+    Returns:
+    - dict: A dictionary object with a single key "result". The value is a JSON object extracted from the OpenAI API response,
+      filled according to the predefined template. This includes fields for title, time, location, and sheltered status,
+      structured based on the input text's analysis.
+      
+    Raises:
+    - HTTPException: An error response with status code 500 if there is an issue with the OpenAI API call.
+    """
+    template_str = json.dumps(template)
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Today is {datetime.now().strftime('%Y-%m-%d')}."},
+                {"role": "user", "content": text_request.text},
+                {"role": "system", "content": f"The template is: {template_str}"}
+            ]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    completion_message_content = completion.choices[0].message.content
+    extracted_json = json.loads(completion_message_content)
+    return {"result": extracted_json}
 
 @app.post("/weather/")
 async def get_weather(weather_request: WeatherRequest):
