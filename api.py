@@ -58,7 +58,7 @@ class Task(BaseModel):
 
 
 class IntermidiateTask(BaseModel):
-    taskId: Optional[str] = None
+    taskId: Optional[int] = None
     title: str
     date: str
     startTime: str
@@ -267,9 +267,9 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         final_result["task"]["longitude"] = 2.3
         
     try:
-        final_result["task"]["TaskId"] = int(final_result["task"]["TaskId"])
+        final_result["task"]["taskId"] = int(final_result["task"]["taskId"])
     except ValueError:
-        final_result["task"]["TaskId"] = 7
+        final_result["task"]["taskId"] = 7
     
     return final_result
 
