@@ -14,7 +14,7 @@ headers = {
 #}
 
 # medium range 3h
-SINGLE_LAYER_2 = "https://climathon.iblsoft.com/data/gfs-0.5deg/edr/collections"
+SINGLE_LAYER_2 = "https://climathon.iblsoft.com/data/gfs-0.5deg/edr/collections/single-layer_2"
 SINGLE_LAYER_2_PARAMETERS = {
     "latent-heat-net-flux_gnd-surf_stat:avg/PT3H": "Latent heat net flux - Ground surface - Average 3h",
     "sensible-heat-net-flux_gnd-surf_stat:avg/PT3H": "Sensible heat net flux - Ground surface - Average 3h",
@@ -39,7 +39,8 @@ SINGLE_LAYER_2_PARAMETERS = {
     "ground-heat-flux_gnd-surf_stat:avg/PT3H": "Ground heat flux - Ground surface - Average 3h"
 }
 # long range 6h
-SINGLE_LAYER_3 = "https://climathon.iblsoft.com/data/gfs-0.5deg/edr/collections"
+SINGLE_LAYER_3 = "https://climathon.iblsoft.com/data/gfs-0.5deg/edr/collections/single-layer_3"
+
 SINGLE_LAYER_3_PARAMETERS={
     "latent-heat-net-flux_gnd-surf_stat:avg/PT6H": "Latent heat net flux - Ground surface - Average 6h",
     "sensible-heat-net-flux_gnd-surf_stat:avg/PT6H": "Sensible heat net flux - Ground surface - Average 6h",
@@ -64,9 +65,6 @@ SINGLE_LAYER_3_PARAMETERS={
     "ground-heat-flux_gnd-surf_stat:avg/PT6H": "Ground heat flux - Ground surface - Average 6h"
 }
 
-
-FIVE_HOURS = timedelta(hours=5)
-
 def extract_relevant_info(entry):
         date = entry['domain']['axes']['t']['values'][0]
         type = list(entry['ranges'].keys())[0]
@@ -76,16 +74,16 @@ def extract_relevant_info(entry):
 def convert_to_date(date):
     return datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")
 
-def get_dates(from_date, to_date):
-    url = f"https://climathon.iblsoft.com/data/gfs-0.5deg/edr/collections/single-layer"
-    
+def get_dates(from_date, url):
     try:
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
             values = data['extent']['temporal']['values']
             values = list(map(lambda x: convert_to_date(x), values))
-            return find_intersection(from_date, to_date, values)
+            if from_date < values[0]:
+                raise Exception('Event has already started')
+            return find_first_value_less_than_or_equal_to_date(from_date, values)
         else:
             print(f"Failed to fetch data. Status code: {response.status_code}")
             return None
@@ -93,33 +91,38 @@ def get_dates(from_date, to_date):
         print(f"An error occurred: {str(e)}")
         return None
 
-def find_intersection(from_date, to_date, values):
-    intersection = []
-
-    for value in values:
-        if from_date <= value <= to_date:
-                intersection.append(value)
-
-    if len(intersection) == 0:
-            # Find the closest values to the boundaries
-        closest_to_from = min(values, key=lambda x: abs(x - from_date))
-        closest_to_to = min(values, key=lambda x: abs(x - to_date))
-        if abs(closest_to_from-from_date) < FIVE_HOURS:
-            intersection.append(closest_to_from)
-        if abs(closest_to_to-to_date) < FIVE_HOURS:
-            intersection.append(closest_to_to)
-
-        
-    return intersection
+def find_first_value_less_than_or_equal_to_date(date, value_list):
+    previous_element = value_list[0]
+    for value in value_list[1:]:
+        if value <= date:
+            previous_element = value
+        else:
+            return previous_element
+    raise Exception('Unexpected error')
 
 def get_weather_data(x, y, from_date, to_date):
-    date_values = get_dates(from_date, to_date)
-    if len(date_values) == 0:
-        print(f"Event is too far in the past or in the future")
-        return None
+    duration = abs(to_date-from_date)
+    url = None
+    if duration <= timedelta(hours=3):
+        url = SINGLE_LAYER_2
+        parameters = SINGLE_LAYER_2_PARAMETERS
+    else:
+        url = SINGLE_LAYER_3
+        parameters = SINGLE_LAYER_3_PARAMETERS
 
-    url = f"https://climathon.iblsoft.com/data/gfs-0.5deg/edr/collections/single-layer/position?coords=POINT({x}%20{y})&datetime={','.join(list(map(lambda x: x.strftime('%Y-%m-%dT%H:%M:%SZ'),date_values)))}"#&parameter-name={','.join(parameters)}"
-    
+    date_value = get_dates(from_date, url)
+
+    #use chatgpt to filter parameters here
+
+    params = {
+        'coords': (x,y),
+        'datetime': date_value.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'parameter-names': ','.join(parameters)
+    }
+
+    # Sending a GET request with parameters
+    response = requests.get(url, params=params)
+
     try:
         response = requests.get(url)
         # Specify the file path
