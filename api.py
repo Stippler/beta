@@ -17,10 +17,15 @@ client = OpenAI(
 )
 
 template = {
-  "title": "String",
-  "time": "dd/mm/yyyy hh:mm",
-  "location": "City",
-  "sheltered": "Boolean",  
+  "title": "Example Event Title",
+  "activity": "1-word activity type",
+  "date": "dd/mm/yyyy",
+  "from": "HH:MM",
+  "to": "HH:MM",
+  "description": "Short description of the event or activity.",
+  "city": "Example City",
+  "location_gps": "Latitude, Longitude",
+  "sheltered": "Boolean",
 }
 
 app = FastAPI()
