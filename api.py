@@ -120,7 +120,8 @@ async def analyze_text_list(text_request: TextListRequest):
         line = TextRequest(text=text)
         result = await analyze_text(line)
         results.append(result)
-    return {results}
+    print(results)
+    return results
 
 
 @app.post("/text")
@@ -150,7 +151,7 @@ async def analyze_text(text_request: TextRequest):
             model="gpt-3.5-turbo",
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will keep the example value of the template. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')} and use the taskId {unique_id}."},
+                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. If you are unsure about any value, fill in your best guess. Make sure to fill in every single value and return valid json. Today is {datetime.now().strftime('%Y-%m-%d')} and use the taskId {unique_id}."},
                 {"role": "user", "content": f"{text_request.text}"},
                 {"role": "system", "content": f"The template is: {template_str}"} 
             ]
@@ -159,7 +160,7 @@ async def analyze_text(text_request: TextRequest):
         raise HTTPException(status_code=500, detail=str(e))
     completion_message_content = completion.choices[0].message.content
     extracted_json = json.loads(completion_message_content)
-    return {"result": extracted_json}
+    return {extracted_json}
 
 
 @app.post("/propose")
