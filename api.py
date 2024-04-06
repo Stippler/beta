@@ -206,7 +206,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             model="gpt-3.5-turbo",
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values."},
+                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'dd/mm/yyyy'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'"},
                 {"role": "user", "content": f"{chat.text_list[-2] + chat.text_list[-1]}"},
                 {"role": "system", "content": f"The template is: {task.model_dump()}"} 
             ]
@@ -245,6 +245,25 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     final_result["success"] = success
     final_result["task"] = result
     final_result["message"] = analysis_message_content
+    
+    yes_options = {"yes", "y", "true", "t", "1"}
+    
+    s = final_result["task"]["sheltered"]
+    if isinstance(s, str) and s != "PLEASE FILL OUT!":
+        if s.strip().lower() in yes_options:
+            final_result["task"]["sheltered"] = True
+        else:
+            final_result["task"]["sheltered"] = False
+            
+    try:
+        final_result["task"]["latitude"] = float(final_result["task"]["latitude"])
+    except ValueError:
+        final_result["task"]["latitude"] = 2.3
+        
+    try:
+        final_result["task"]["longitude"] = float(final_result["task"]["longitude"])
+    except ValueError:
+        final_result["task"]["longitude"] = 2.3
     
     return final_result
 
