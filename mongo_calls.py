@@ -5,12 +5,6 @@ from pymongo.server_api import ServerApi
 import os
 
 
-# Needed methods
-# mongodb_add_task(task.model_dump())
-# mongodb_retrieve_tasks()
-# mongodb_update_task(new_task.model_dump())
-# mongodb_delete_task(id)
-
 def get_client():
     password = os.environ.get("MONGO_DB_KEY")
 
