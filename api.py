@@ -46,7 +46,7 @@ app.add_middleware(
 
 # Models
 class Task(BaseModel):
-    taskID: int
+    taskId: int
     title: str
     date: str
     startTime: str
@@ -58,6 +58,7 @@ class Task(BaseModel):
     longitude: float
     sheltered: bool
 
+
 class WeatherRequest(BaseModel):
     longitude: float
     latitude: float
@@ -67,7 +68,7 @@ class TextRequest(BaseModel):
     text: str
 
 class TextListRequest(BaseModel):
-    texts: List[str]
+    text: str
 
 @app.get("/")
 async def read_root():
@@ -82,7 +83,13 @@ async def create_task(task: Task):
     raise HTTPException(status_code=500, detail="Task could not be created")
 
 
-@app.get("/task/", response_description="List all tasks", response_model=List[Task])
+@app.post("/task/many/", response_description="Add new tasks")
+async def create_task(task_list: List [Task]):
+    task = await db.add_multiple_tasks([t.model_dump() for t in task_list])
+    raise HTTPException(status_code=500, detail="Task could not be created")
+
+
+@app.get("/task", response_description="List all tasks", response_model=List[Task])
 async def list_tasks():
     tasks = await db.retrieve_tasks()
     if tasks is not None:
@@ -90,7 +97,7 @@ async def list_tasks():
     raise HTTPException(status_code=500, detail="Error retrieving tasks list")
 
 
-@app.put("/task/", response_description="Update a task")
+@app.put("/task", response_description="Update a task")
 async def update_task(new_task: Task):
     task = await db.update_task(new_task.model_dump())
     if task is not None:
@@ -106,17 +113,17 @@ async def delete_task(id : int):
     raise HTTPException(status_code=500, detail="Task could not be deleted")
 
 
-@app.post("/text_list/")
+@app.post("/text_list")
 async def analyze_text_list(text_request: TextListRequest):
     results = []
-    for text in text_request.texts:
+    for text in text_request.text.split('\n'):
         line = TextRequest(text=text)
         result = await analyze_text(line)
         results.append(result)
     return {results}
 
 
-@app.post("/text/")
+@app.post("/text")
 async def analyze_text(text_request: TextRequest):
     """
     Analyzes the input text and extracts information to fill out a predefined template.
@@ -155,7 +162,7 @@ async def analyze_text(text_request: TextRequest):
     return {"result": extracted_json}
 
 
-@app.post("/propose/")
+@app.post("/propose")
 async def propose_new_date(old_text: dict, new_proposed_date: dict):
     """
     Proposes a new date and time for an activity based on the original event details and a proposed time.
@@ -191,7 +198,7 @@ async def propose_new_date(old_text: dict, new_proposed_date: dict):
     return {"result": completion_message_content}
 
 
-@app.post("/weather/")
+@app.post("/weather")
 async def get_weather(weather_request: WeatherRequest):
     # Placeholder for fetching weather data based on location and timeframe
     # You should replace this with a call to a real weather API
@@ -199,7 +206,7 @@ async def get_weather(weather_request: WeatherRequest):
     return {}
 
 
-@app.post("/ok/")
+@app.post("/ok")
 async def check_weather_ok(weather_request: WeatherRequest):
     # Placeholder for logic to determine if weather is OK for an event
     # This could check if it will rain and decide based on that
