@@ -2,6 +2,9 @@ import pandas as pd
 import requests
 import json
 from datetime import datetime, timedelta
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
 
 headers = {
     "accept": "application/json"
@@ -12,6 +15,16 @@ headers = {
 #    "maximum-temperature_stat:max/PT3H": "Maximum temperature - Maximum 3h",
 #    "minimum-temperature_stat:min/PT3H": "Minimum temperature - Minimum 3h"
 #}
+
+# OpenAI API variables
+
+model = "gpt-4-1106-preview"
+load_dotenv()
+client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+)
+
+question = "I want to go surfing tomorrow. Is this a good idea?"
 
 # medium range 3h
 SINGLE_LAYER_2 = "https://climathon.iblsoft.com/data/gfs-0.5deg/edr/collections/single-layer_2"
@@ -112,7 +125,21 @@ def get_weather_data(x, y, from_date, to_date):
 
     date_value = get_dates(from_date, url)
 
-    #use chatgpt to filter parameters here
+    completion = client.chat.completions.create(
+      model=model,
+      response_format={ "type": "json_object" },
+      messages=[
+        {"role": "system", "content": "You are an expert in predicting how good an activity is based on the weather forecast. You receive a question about a planned activity and a list of parameters that you could get. Decide based on the activity which parameters you require from the list to answer the query. Make sure to only answer parameters that appear in the list. You return a json list of parameters that you need to answer the question in this form: {required_parameters: [parameter1, parameter2, ...]}" },
+        {"role": "user", "content": f"{question}"},
+        {"role": "system", "content": f"The list of parameters is: {parameters}"}
+      ]
+    )
+
+    completion_message_content = completion.choices[0].message.content
+
+    extracted_json = json.loads(completion_message_content)
+
+    parameters= extracted_json['required_parameters']
 
     params = {
         'coords': (x,y),
