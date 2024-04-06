@@ -259,7 +259,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         except:
             final_result["task"]["latitude"] = 2.3
             
-        try:
+        try: 
             final_result["task"]["longitude"] = float(final_result["task"]["longitude"])
         except:
             final_result["task"]["longitude"] = 2.3
