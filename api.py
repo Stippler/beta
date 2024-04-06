@@ -69,6 +69,10 @@ class IntermidiateTask(BaseModel):
     latitude: str
     longitude: str
     sheltered: str
+    
+class UpdateTextRequest(BaseModel):
+    task: IntermidiateTask
+    messages: List[str]
 
 class WeatherRequest(BaseModel):
     longitude: float
@@ -79,7 +83,7 @@ class TextRequest(BaseModel):
     text: str
 
 class TextListRequest(BaseModel):
-    text: str
+    text: List [str]
 
 @app.get("/")
 async def read_root():
@@ -136,7 +140,7 @@ async def analyze_text_list(text_request: TextListRequest):
 
 
 @app.post("/text")
-async def analyze_text(text_request: TextRequest):
+async def analyze_text(inter_task_and_text: UpdateTextRequest):
     """
     Analyzes the input text and extracts information to fill out a predefined template.
     
@@ -161,7 +165,41 @@ async def analyze_text(text_request: TextRequest):
     Raises:
     - HTTPException: An error response with status code 500 if there is an issue with the OpenAI API call.
     """
-    template_str = json.dumps(default_task)
+    task = inter_task_and_text.task
+    chat = inter_task_and_text.messages
+
+    if(task is None):
+        template_str = json.dumps(default_task)
+    
+        # initial try
+        try:
+            completion = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                response_format={ "type": "json_object" },
+                messages=[
+                    {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
+                    {"role": "user", "content": f"{chat[0].text}"},
+                    {"role": "system", "content": f"The template is: {template_str}"} 
+                ]
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        completion_message_content = completion.choices[0].message.content
+        extracted_json = json.loads(completion_message_content)
+        
+        success = True
+        
+        result = {}
+        # Iterate over key, value pairs in the first dictionary
+        for key, value in extracted_json.items():
+            # Check if the key is in the second dictionary and has a different value
+            if extracted_json[key] == "EMPTY":
+                result[key] = "PLEASE FILL OUT!"
+                success = False
+            else:
+                result[key] = value
+        
+        task = result
     
     # initial try
     try:
@@ -169,9 +207,9 @@ async def analyze_text(text_request: TextRequest):
             model="gpt-3.5-turbo",
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
-                {"role": "user", "content": f"{text_request.text}"},
-                {"role": "system", "content": f"The template is: {template_str}"} 
+                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'dd/mm/yyyy'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'"},
+                {"role": "user", "content": f"{chat.text_list[-2] + chat.text_list[-1]}"},
+                {"role": "system", "content": f"The template is: {task.model_dump()}"} 
             ]
         )
     except Exception as e:
@@ -196,7 +234,7 @@ async def analyze_text(text_request: TextRequest):
         analysis = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a not completely filled json template. The unfilled entries are marked with 'PLEASE FILL OUT!'. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time!"},
+                {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a not completely filled json template. The unfilled entries are marked with 'PLEASE FILL OUT!'. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time! For longitudinal and latitudinal information, ask for the location instead. Ask as simple questions as possible."},
                 {"role": "system", "content": f"The template is: {result}"} 
             ]
         )
@@ -209,11 +247,26 @@ async def analyze_text(text_request: TextRequest):
     final_result["task"] = result
     final_result["message"] = analysis_message_content
     
+    yes_options = {"yes", "y", "true", "t", "1"}
+    
+    s = final_result["task"]["sheltered"]
+    if isinstance(s, str) and s != "PLEASE FILL OUT!":
+        if s.strip().lower() in yes_options:
+            final_result["task"]["sheltered"] = True
+        else:
+            final_result["task"]["sheltered"] = False
+            
+    try:
+        final_result["task"]["latitude"] = float(final_result["task"]["latitude"])
+    except ValueError:
+        final_result["task"]["latitude"] = 2.3
+        
+    try:
+        final_result["task"]["longitude"] = float(final_result["task"]["longitude"])
+    except ValueError:
+        final_result["task"]["longitude"] = 2.3
+    
     return final_result
-
-@app.post("/text-update")
-async def analyze_text(inter_task: IntermidiateTask, text_request: TextRequest):
-    return {}
 
 
 @app.post("/propose")
