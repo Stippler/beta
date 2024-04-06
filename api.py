@@ -44,7 +44,7 @@ app.add_middleware(
 
 # Models
 class Task(BaseModel):
-    taskId: int
+#   taskId: int
     title: str
     date: str
     startTime: str
