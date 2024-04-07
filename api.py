@@ -408,10 +408,8 @@ async def propose_new_time(task: Task):
                     {"role": "user", "content": f"Weather data: {weather_data}"}
                 ]
             )
-            print(completion.choices[0].message.content)
             response = json.loads(completion.choices[0].message.content) 
             suitable = response["suitable"]
-            print(suitable)
             if suitable:
                 return {"new_time": new_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": suitable}
         except Exception as e:
