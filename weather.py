@@ -191,7 +191,6 @@ def get_weather_data(x, y, from_date, to_date, description):
     extracted_json = json.loads(completion_message_content)
 
     parameters= extracted_json['required_parameters']
-    print(parameters)
 
     params = {
         'coords': f'POINT({y} {x})',
