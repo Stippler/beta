@@ -444,13 +444,15 @@ async def propose_new_time(task: Task):
             )
             response = json.loads(completion.choices[0].message.content) 
             suitable = response["suitable"]
+            print(new_date.strftime( "%H:%M"))
+            print((new_date + (to_date - from_date)).strftime( "%H:%M"))
             if suitable:
-                return {"startTime": new_date.strftime("%Y-%m-%d %H:%M"), "endTime": (new_date + (to_date - from_date)).strftime("%Y-%m-%d %H:%M"), "suitable": suitable, "reason": response["reason"]}
+                return {"startTime": new_date.strftime( "%H:%M"), "endTime": (new_date + (to_date - from_date)).strftime( "%H:%M"), "suitable": suitable, "reason": response["reason"]}
         except Exception as e:
             raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
         
 
-    return {"startTime": from_date.strftime("%Y-%m-%d %H:%M"), "endTime": to_date.strftime("%Y-%m-%d %H:%M"), "suitable": suitable, "reason": response["reason"]}
+    return {"startTime": from_date.strftime( "%H:%M"), "endTime": to_date.strftime( "%H:%M"), "suitable": suitable, "reason": response["reason"]}
 
  
 
