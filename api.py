@@ -290,10 +290,13 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         try:
             task["latitude"] = float(task["latitude"])
             task["longitude"] = float(task["longitude"])
-            task["indoor"] = eval(task["indoor"])
         except:
             task["latitude"] = 48.42
             task["longitude"] = 21.15
+
+        try:
+            task["indoor"] = eval(task["indoor"])
+        except:
             task["indoor"] = False
         
     final_result["task"] = task
