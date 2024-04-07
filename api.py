@@ -327,6 +327,7 @@ async def propose_new_date(old_text: dict, new_proposed_date: dict):
     try:
         completion = client.chat.completions.create(
             model=model,
+            response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": f"You are an automated system that formulates a rescheduling because the weather is bad during the original activity plan. Based on input information for an event and a new proposed time, you will write a short text where you propose the new time for the activity. An example might be: 'Due to rain during this time, you might want to reschedule your meeting for tomorrow'. Today is {datetime.now().strftime('%Y-%m-%d')}."},
                 {"role": "user", "content": f"Activity: {old_str}"},
@@ -365,6 +366,7 @@ async def get_weather(task: Task):
     if task["indoor"] is True:
         return {"suitable": "True", "reason": "The event is indoor."}
     from_date, to_date = convert_to_iso8601(task)
+    print(from_date, to_date)
     try:
         weather_data = get_weather_data(task["latitude"], task["longitude"], from_date, to_date, task["description"])
     except Exception as e:
@@ -373,6 +375,7 @@ async def get_weather(task: Task):
     try:
         completion = client.chat.completions.create(
             model=model,
+            response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": "You are an automated system that checks the weather for an event. Based on the input information for the event and the weather data for this time, you will determine if the weather is suitable for the activity. You will return a response indicating whether the weather is good or bad for the event of the form {suitable: 'True / False', reason: 'reason for decision'}. In your reasoning, explain how the provided parameters impaced your decision making. Make sure to return a valid json object."},
                 {"role": "user", "content": f"Task: {task}"}, 
@@ -421,17 +424,15 @@ async def propose_new_time(task: Task):
                 model=model,
                 response_format={ "type": "json_object" },
                 messages=[
-                    {"role": "system", "content": "You are an automated system that checks the weather for an event. Based on the input information for the event and the weather data for this time, you will determine if the weather is suitable for the activity. You will return a response indicating whether the weather is good or bad for the event of the form {suitable: 'True / False', reason: 'reason for decision'}. In your reasoning, explain how the provided parameters impaced your decision making. Make sure to return a valid json object."},
+                    {"role": "system", "content": "You are an automated system that checks the weather for an event. Based on the input information for the event and the weather data for this time, you will determine if the weather is suitable for the activity. You will return a response indicating whether the weather is good or bad for the event of the form {suitable: boolean, reason: 'reason for decision'}. In your reasoning, explain how the provided parameters impaced your decision making. Make sure to return a valid json object."},
                     {"role": "user", "content": f"Task: {task}"}, 
                     {"role": "user", "content": f"Weather data: {weather_data}"}
                 ]
             )
-            print(completion.choices[0].message.content)
             response = json.loads(completion.choices[0].message.content) 
             suitable = response["suitable"]
-            print(suitable)
-            if suitable == "True":
-                return {"new_time": new_date.strftime("%Y-%m-%dT%H:%M:%SZ"), "answer": suitable}
+            if suitable:
+                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": suitable}
         except Exception as e:
             raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
 
