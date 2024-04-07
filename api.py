@@ -300,6 +300,8 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             task["indoor"] = eval(task["indoor"])
         except:
             task["indoor"] = False
+            
+    print(task)
         
     final_result["task"] = task
     final_result["success"] = success
@@ -439,12 +441,13 @@ async def propose_new_time(task: Task):
             response = json.loads(completion.choices[0].message.content) 
             print(response)
             suitable = response["suitable"]
-            if suitable == 'True':
-                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": suitable == "True"}
+            if suitable:
+                print(suitable)
+                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M"), "suitable": suitable}
         except Exception as e:
             raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
 
-    return {"new_time": from_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": False}
+    return {"new_time": from_date.strftime("%Y-%m-%d %H:%M"), "suitable": False}
 
 
 
