@@ -298,6 +298,8 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             task["indoor"] = eval(task["indoor"])
         except:
             task["indoor"] = False
+            
+    print(task)
         
     final_result["task"] = task
     final_result["success"] = success
