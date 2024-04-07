@@ -21,16 +21,15 @@ model = "gpt-4-1106-preview"
 model_frontend = "gpt-3.5-turbo"
 
 default_task = {
-    "title": "Example Event Title",
+    "title": "Event Title describing the event",
     "date": "yyyy-mm-dd",
     "startTime": "HH:MM",
     "endTime": "HH:MM",
     "activity": "choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other",
     "description": "Short description of the event or activity.",
-#   "location": "Example location",
     "latitude": "Float describing the Latitude the event will take place",
     "longitude": "Float describing Longitude the event will take place",
-    "sheltered": "Boolean describing if the event takes place in a sheltered place or not"
+    "indoor": "Boolean describing if the event takes place indoor or not."
 }
 
 app = FastAPI()
@@ -53,10 +52,9 @@ class Task(BaseModel):
     endTime: str
     activity: str
     description: str
-#   location: str
     latitude: float
     longitude: float
-    sheltered: bool
+    indoor: bool
 
 
 class IntermidiateTask(BaseModel):
@@ -66,10 +64,9 @@ class IntermidiateTask(BaseModel):
     endTime: str
     activity: str
     description: str
-#   location: str
     latitude: str
     longitude: str
-    sheltered: str
+    indoor: str
     
 class UpdateTextRequest(BaseModel):
     task: Optional[IntermidiateTask] = None
@@ -153,7 +150,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     
     Returns:
     - dict: A dictionary object with a single key "result". The value is a JSON object extracted from the OpenAI API response,
-      filled according to the predefined template. This includes fields for title, time, location, and sheltered status,
+      filled according to the predefined template. This includes fields for title, time, location, and indoor status,
       structured based on the input text's analysis.
       
     Return Format:
@@ -167,118 +164,142 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     - HTTPException: An error response with status code 500 if there is an issue with the OpenAI API call.
     """
     
+    template_str = json.dumps(default_task)
+    
     task = inter_task_and_text.task
     chat = inter_task_and_text.messages
 
+    completion = None
+
     if task is None:
-        template_str = json.dumps(default_task)
-    
-        # initial try
+        # first try to fill the json
         completion = client.chat.completions.create(
             model=model_frontend,
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
+                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. The values in the json template describe what the keys should store. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY as a string. Do not make up information that you cannnot extract from the user input. However, if you can guess the event description or if the event is indoor from its title or description, please fill out these entries. Today is {datetime.now().strftime('%Y-%m-%d')}."},
                 {"role": "user", "content": f"{chat[-1]}"},
                 {"role": "system", "content": f"The template is: {template_str}"} 
             ]
         )
-        
-        completion_message_content = completion.choices[0].message.content
-        extracted_json = json.loads(completion_message_content)
-        
-        
-        success = True
-        
-        result = {}
-        # Iterate over key, value pairs in the first dictionary
-        for key, value in extracted_json.items():
-            # Check if the key is in the second dictionary and has a different value
-            if key=="taskId":
-                continue
-            if extracted_json[key] == "EMPTY":
-                result[key] = "PLEASE FILL OUT!"
-                success = False
-            else:
-                result[key] = value
-        
-        task = result
     else:
-        user_message = chat[-2]+chat[-1]
+        # try to update the json file
+        user_answer = chat[-1]
+        bot_question = chat[-2]
         completion = client.chat.completions.create(
             model=model_frontend,
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'yyyy-mm-dd'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'. For the activity choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other"},
-                {"role": "user", "content": f"{user_message}"},
-                {"role": "system", "content": f"The template is: {task}"} 
+                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a question that was asked to the user and its response. Additionally you will get a json template that the user has partially filled out and a json template that describe for each entry what they need to be filled with. You will extract the information from the user response and fill out a template based on it. You return nothing other than the filled-out template in valid json format. The entries not filled by the user are marked with the word EMPTY. Any value that was EMPTY and you cannot fill in, you will leave with the word EMPTY. Do not make up information that you cannnot extract from the user input. If it is possible to guess an event description or if the event is indoor or not, please do so. For longitude and latitude, if a location is given, fill in some estimate for those values. Today is {datetime.now().strftime('%Y-%m-%d')}."},
+                {"role": "system", "content": f"The bots question was: {bot_question}"},
+                {"role": "system", "content": f"The users answer was: {user_answer}"},
+                {"role": "system", "content": f"The initial template describing what each entry should hold is: {template_str}"},
+                {"role": "user", "content": f"The template which entries that are EMPTY need to be filled: {task}"} 
             ]
         )
-        completion_message_content = completion.choices[0].message.content
-        extracted_json = json.loads(completion_message_content)
         
-        success = True
+    completion_message_content = completion.choices[0].message.content
+    task = json.loads(completion_message_content) 
         
-        result = {}
-        # Iterate over key, value pairs in the first dictionary
-        for key, value in extracted_json.items():
-            # Check if the key is in the second dictionary and has a different value
-            if key=="taskId":
-                continue
-            if value == "EMPTY":
-                result[key] = "PLEASE FILL OUT!"
-                success = False
-            else:
-                result[key] = value
+    success = True
+    
+    if "title" not in task:
+        task["tite"] = "EMPTY"
+    if "date" not in task:
+        task["date"] = "EMPTY"
+    if "startTime" not in task:
+        task["startTime"] = "EMPTY"
+    if "endTime" not in task:
+        task["endTime"] = "EMPTY"
+    if "activity" not in task:
+        task["activity"] = "EMPTY"
+    if "description" not in task:
+        task["description"] = "EMPTY"
+
+    # Iterate over key, value pairs in the first dictionary
+    for key, value in task.items():
+        # Check if the key is in the second dictionary and has a different value
+        if value == "EMPTY":
+            success = False
+        if key == "taskId":
+            continue
+
+    if success:
+        check = client.chat.completions.create(
+            model=model_frontend,
+            messages=[
+                {"role": "system", "content": f"You are an assistant that checks if a json was filled out correctly. You receive as input a filled json template and the template which also describes which entry should hold what value. You check if the template was filled correctly. If so, you answer with the number 1. If it was filled out wrong you answer with the number 0. You answer with this number without asking further questions and without giving any reasoning. Types are unimportant, we are only interested in content and format."},
+                {"role": "system", "content": f"The initial template describing what each entry should hold is: {template_str}"},
+                {"role": "user", "content": f"The template which entries need to be checked is: {task}"} 
+            ]
+        )
         
+        if '0' in check.choices[0].message.content and '1' not in check.choices[0].message.content:
+            final_result = {}
+            final_result["success"] = False
+            final_result["task"] = None
+            final_result["message"] = "Unfortunately, something went wrong. Your event was prematurely checked as success by AI. Please try to create the event again."
+            return final_result
+    
     # analysis
+    analysis = None
     if not success:
         analysis = client.chat.completions.create(
             model=model_frontend,
             messages=[
-                {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a not completely filled json template. The unfilled entries are marked with 'PLEASE FILL OUT!'. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time! For longitudinal and latitudinal information, ask for the location instead. Ask as simple questions as possible."},
-                {"role": "system", "content": f"The template is: {result}"} 
+                {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a partially filled json template. The unfilled entries are marked with the word EMPTY or are invalid entries. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time! For longitudinal and latitudinal information, ask for the location instead. Ask as simple questions as possible. Do not mention that you are filling out a JSON file."},
+                {"role": "user", "content": f"The template is: {task}"} 
             ]
         )
-        analysis_message_content = analysis.choices[0].message.content
     else:
         analysis = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": f"Please summarize the following json describing an event and tell the user that the event creation was successfull."},
-                {"role": "system", "content": f"The json is: {result}"} 
+                {"role": "system", "content": f"You are an assisstant communication with the user. You  are given a json template describing an event, need to summarize it for the user and tell the user that the event creation was successfull. Only answer with what you have been instructed to. Do not make up something. Be nice to the user."},
+                {"role": "user", "content": f"The json is: {task}"} 
             ]
         )
-        analysis_message_content = analysis.choices[0].message.content
+        
+    analysis_message_content = analysis.choices[0].message.content
         
     final_result = {}
-    final_result["success"] = success
-    final_result["task"] = result
-    final_result["message"] = analysis_message_content
-        
-    yes_options = {"yes", "y", "true", "t", "1"}
-        
-    s = final_result["task"]["sheltered"]
-    if success and isinstance(s, str) and s != "PLEASE FILL OUT!":
-        if s.strip().lower() in yes_options:
-            final_result["task"]["sheltered"] = True
-        else:
-            final_result["task"]["sheltered"] = False
-        
-    if success:     
-        try:
-            final_result["task"]["latitude"] = float(final_result["task"]["latitude"])
-        except:
-            final_result["task"]["latitude"] = 2.3
-            
-        try: 
-            final_result["task"]["longitude"] = float(final_result["task"]["longitude"])
-        except:
-            final_result["task"]["longitude"] = 2.3
-    else:
-        final_result['task']['sheltered'] = str(final_result['task']['sheltered'])
     
-    print(final_result)
+    print(task)
+
+    
+    if not success:
+        if "latitude" not in task:
+            task["latitude"] = "EMPTY"
+        if "longitude" not in task:
+            task["longitude"] = "EMPTY"
+        if "indoor" not in task:
+            task["indoor"] = "EMPTY"
+    
+        task["latitude"] = str(task["latitude"])
+        task["longitude"] = str(task["longitude"])
+        task["indoor"] = str(task["indoor"])
+    
+    if success:
+        if "latitude" not in task:
+            task["latitude"] = 48.42
+        if "longitude" not in task:
+            task["longitude"] = 21.15
+        if "indoor" not in task:
+            task["indoor"] = False
+            
+        try:
+            task["latitude"] = float(task["latitude"])
+            task["longitude"] = float(task["longitude"])
+            task["indoor"] = eval(task["indoor"])
+        except:
+            task["latitude"] = 48.42
+            task["longitude"] = 21.15
+            task["indoor"] = False
+        
+    final_result["task"] = task
+    final_result["success"] = success
+    final_result["message"] = analysis_message_content
+    
     return final_result
 
 
@@ -291,7 +312,7 @@ async def propose_new_date(old_text: dict, new_proposed_date: dict):
     new date and time. These are passed to the OpenAI API to generate a response suggesting a new time for the activity.
     
     Parameters:
-    - old_text (dict): A dictionary object with the original event details, including fields for title, time, location, and sheltered status.
+    - old_text (dict): A dictionary object with the original event details, including fields for title, time, location, and indoor status.
     - new_proposed_date (dict): A dictionary object with the proposed new date and time for the activity.
     
     Returns:
@@ -341,7 +362,7 @@ async def get_weather(task: Task):
     Output: Good/Bad
     """
     task = task.model_dump()
-    if task["sheltered"] is True:
+    if task["indoor"] is True:
         return {"suitable": "True", "reason": "The event is indoor."}
     from_date, to_date = convert_to_iso8601(task)
     try:
