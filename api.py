@@ -432,11 +432,11 @@ async def propose_new_time(task: Task):
             response = json.loads(completion.choices[0].message.content) 
             suitable = response["suitable"]
             if suitable:
-                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": suitable}
+                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": suitable == "True"}
         except Exception as e:
             raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
 
-    return {"new_time": "No suitable time found", "answer": "No suitable time found"}
+    return {"new_time": from_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": False}
 
 
 
