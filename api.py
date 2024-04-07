@@ -29,7 +29,7 @@ default_task = {
     "description": "Short description of the event or activity.",
     "latitude": "Float describing the Latitude the event will take place",
     "longitude": "Float describing Longitude the event will take place",
-    "indoor": "Boolean describing if the event takes place indoor or not."
+    "indoor": "Boolean describing if the event takes place indoors or not."
 }
 
 app = FastAPI()
@@ -192,11 +192,11 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             model=model_frontend,
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a question that was asked to the user and its response. Additionally you will get a json template that the user has partially filled out and a json template that describe for each entry what they need to be filled with. You will extract the information from the user response and fill out a template based on it. You return nothing other than the filled-out template in valid json format. The entries not filled by the user are marked with the word EMPTY. Any value that was EMPTY and you cannot fill in, you will leave with the word EMPTY. Do not make up information that you cannnot extract from the user input. If it is possible to guess an event description or if the event is indoor or not, please do so. For longitude and latitude, if a location is given, fill in some estimate for those values. Today is {datetime.now().strftime('%Y-%m-%d')}."},
-                {"role": "system", "content": f"The bots question was: {bot_question}"},
-                {"role": "system", "content": f"The users answer was: {user_answer}"},
-                {"role": "system", "content": f"The initial template describing what each entry should hold is: {template_str}"},
-                {"role": "user", "content": f"The template which entries that are EMPTY need to be filled: {task}"} 
+                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a question that was asked to the user and its response. Additionally you will get a json template that the user has partially filled out and a json template that describe for each entry what they need to be filled with. You will extract the information from the user response and fill out a template based on it. You return nothing other than the filled-out template in valid json format. The entries not filled by the user are marked with the word EMPTY. Any value that was EMPTY and you cannot fill in, you will leave with the word EMPTY. Do not make up information that you cannnot extract from the user input. If possible, determine longitude and latitude from the location. Today is {datetime.now().strftime('%Y-%m-%d')}."},
+                {"role": "assistant", "content": f" {bot_question}"},
+                {"role": "user", "content": f"{user_answer}"},
+                {"role": "user", "content": f"The initial template describing what each entry should hold is: {template_str}"},
+                {"role": "user", "content": f"The template to be filled: {task}"} 
             ]
         )
         
@@ -217,6 +217,10 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         task["activity"] = "EMPTY"
     if "description" not in task:
         task["description"] = "EMPTY"
+    if "latitude" not in task:
+        task["latitude"] = "EMPTY"
+    if "longitude" not in task:
+        task["longitude"] = "EMPTY"
 
     # Iterate over key, value pairs in the first dictionary
     for key, value in task.items():
@@ -424,7 +428,6 @@ async def propose_new_time(task: Task):
             new_is_day = day_start <= new_date.time() <= day_end
             if original_is_day == new_is_day:
                 alternative_times.append(new_date)
-    print(alternative_times)
     # Check weather suitability for each alternative time
     for new_date in alternative_times:
         weather_data = get_weather_data(task_dict["latitude"], task_dict["longitude"], new_date, new_date + timedelta(hours=1), task_dict["description"])
@@ -439,17 +442,16 @@ async def propose_new_time(task: Task):
                 ]
             )
             response = json.loads(completion.choices[0].message.content) 
-            print(response)
             suitable = response["suitable"]
             if suitable:
-                print(suitable)
-                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M"), "suitable": suitable}
+                return {"startTime": new_date.strftime("%Y-%m-%d %H:%M"), "endTime": (new_date + (to_date - from_date)).strftime("%Y-%m-%d %H:%M"), "suitable": suitable, "reason": response["reason"]}
         except Exception as e:
             raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
+        
 
-    return {"new_time": from_date.strftime("%Y-%m-%d %H:%M"), "suitable": False}
+    return {"startTime": from_date.strftime("%Y-%m-%d %H:%M"), "endTime": to_date.strftime("%Y-%m-%d %H:%M"), "suitable": suitable, "reason": response["reason"]}
 
-
+ 
 
 # Main for running with Uvicorn
 if __name__ == "__main__":
