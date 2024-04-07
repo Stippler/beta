@@ -19,7 +19,7 @@ client = OpenAI(
 
 default_task = {
     "title": "Example Event Title",
-    "date": "dd/mm/yyyy",
+    "date": "yyyy-mm-dd",
     "startTime": "HH:MM",
     "endTime": "HH:MM",
     "activity": "choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other",
@@ -176,7 +176,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
-                {"role": "user", "content": f"{chat[0]}"},
+                {"role": "user", "content": f"{chat[-1]}"},
                 {"role": "system", "content": f"The template is: {template_str}"} 
             ]
         )
@@ -206,7 +206,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             model="gpt-3.5-turbo",
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'dd/mm/yyyy'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'"},
+                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'yyyy-mm-dd'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'"},
                 {"role": "user", "content": f"{user_message}"},
                 {"role": "system", "content": f"The template is: {task}"} 
             ]
@@ -229,14 +229,24 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
                 result[key] = value
         
     # analysis
-    analysis = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a not completely filled json template. The unfilled entries are marked with 'PLEASE FILL OUT!'. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time! For longitudinal and latitudinal information, ask for the location instead. Ask as simple questions as possible."},
-            {"role": "system", "content": f"The template is: {result}"} 
-        ]
-    )
-    analysis_message_content = analysis.choices[0].message.content
+    if not success:
+        analysis = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a not completely filled json template. The unfilled entries are marked with 'PLEASE FILL OUT!'. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time! For longitudinal and latitudinal information, ask for the location instead. Ask as simple questions as possible."},
+                {"role": "system", "content": f"The template is: {result}"} 
+            ]
+        )
+        analysis_message_content = analysis.choices[0].message.content
+    else:
+        analysis = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": f"Please summarize the following json describing an event and tell the user that the event creation was successfull."},
+                {"role": "system", "content": f"The json is: {result}"} 
+            ]
+        )
+        analysis_message_content = analysis.choices[0].message.content
         
     final_result = {}
     final_result["success"] = success
