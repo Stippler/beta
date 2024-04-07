@@ -290,6 +290,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         try:
             task["latitude"] = float(task["latitude"])
             task["longitude"] = float(task["longitude"])
+            task["indoor"] = eval(task["indoor"])
         except:
             task["latitude"] = 48.42
             task["longitude"] = 21.15
@@ -438,11 +439,11 @@ async def propose_new_time(task: Task):
             print(response)
             suitable = response["suitable"]
             if suitable == 'True':
-                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": suitable == "True"}
+                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M"), "answer": suitable == "True"}
         except Exception as e:
             raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
 
-    return {"new_time": from_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": False}
+    return {"new_time": from_date.strftime("%Y-%m-%d %H:%M"), "answer": False}
 
 
 
