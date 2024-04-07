@@ -1,4 +1,3 @@
-import pandas as pd
 import requests
 import json
 from datetime import datetime, timedelta

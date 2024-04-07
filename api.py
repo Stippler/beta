@@ -325,11 +325,11 @@ def convert_to_iso8601(json_dict):
     :return: Two strings representing the start and end timestamps in ISO 8601 format.
     """
     # Parsing the "date" from "dd/mm/yyyy" to a datetime object
-    date = datetime.strptime(json_dict["date"], "%d/%m/%Y")
+    # date = datetime.strptime(json_dict["date"], "%d/%m/%Y")
     
     # Parsing "startTime" and "endTime" from "hh/mm" to time objects and combining them with "date"
-    start_datetime = datetime.strptime(f'{json_dict["date"]} {json_dict["startTime"]}', "%d/%m/%Y %H:%M")
-    end_datetime = datetime.strptime(f'{json_dict["date"]} {json_dict["endTime"]}', "%d/%m/%Y %H:%M")
+    start_datetime = datetime.strptime(f'{json_dict["date"]} {json_dict["startTime"]}', "%Y-%m-%d %H:%M")
+    end_datetime = datetime.strptime(f'{json_dict["date"]} {json_dict["endTime"]}', "%Y-%m-%d %H:%M")
 
     
     return start_datetime, end_datetime
@@ -342,16 +342,17 @@ async def get_weather(task: Task):
     """
     task = task.model_dump()
     if task["sheltered"] is True:
-        return {"suitable": "True", "reason": "The event is indoor."}
+        return {"suitable": True, "reason": "The event is indoor."}
     from_date, to_date = convert_to_iso8601(task)
     try:
         weather_data = get_weather_data(task["latitude"], task["longitude"], from_date, to_date, task["description"])
     except Exception as e:
         print(e)
-        return {"suitable": "False", "reason": "Event has already started."}
+        return {"suitable": False, "reason": "Event has already started."}
     try:
         completion = client.chat.completions.create(
             model=model,
+            response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": "You are an automated system that checks the weather for an event. Based on the input information for the event and the weather data for this time, you will determine if the weather is suitable for the activity. You will return a response indicating whether the weather is good or bad for the event of the form {suitable: 'True / False', reason: 'reason for decision'}. In your reasoning, explain how the provided parameters impaced your decision making. Make sure to return a valid json object."},
                 {"role": "user", "content": f"Task: {task}"}, 
@@ -361,7 +362,9 @@ async def get_weather(task: Task):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     print(completion.choices[0].message.content)
-    return completion.choices[0].message.content
+    response = json.loads(completion.choices[0].message.content)
+    response['suitable'] = response['suitable'] == 'True'
+    return response
 
 @app.post("/new_time")
 async def propose_new_time(task: Task):
@@ -410,7 +413,7 @@ async def propose_new_time(task: Task):
             suitable = response["suitable"]
             print(suitable)
             if suitable == "True":
-                return {"new_time": new_date.strftime("%Y-%m-%dT%H:%M:%SZ"), "answer": suitable}
+                return {"new_time": new_date.strftime("%Y-%m-%dT%H:%M:%SZ"), "answer": suitable=='True'}
         except Exception as e:
             raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
 
