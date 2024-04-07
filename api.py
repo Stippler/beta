@@ -435,6 +435,7 @@ async def propose_new_time(task: Task):
                 ]
             )
             response = json.loads(completion.choices[0].message.content) 
+            print(response)
             suitable = response["suitable"]
             if suitable == 'True':
                 return {"new_time": new_date.strftime("%Y-%m-%d %H:%M:%S"), "answer": suitable == "True"}
