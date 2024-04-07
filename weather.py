@@ -154,6 +154,8 @@ def find_first_value_less_than_or_equal_to_date(date, value_list):
             previous_element = value
         else:
             return previous_element
+    if previous_element == value_list[-1]:
+        return previous_element
     raise Exception('Unexpected error')
 
 def get_weather_data(x, y, from_date, to_date):
@@ -169,8 +171,11 @@ def get_weather_data(x, y, from_date, to_date):
         temp_url = HEIGHT_ABOVE_GROUND_3
         temp_params = HEIGHT_ABOVE_GROUND_3_PARAMS
         parameters = SINGLE_LAYER_3_PARAMETERS
-
-    date_value = get_dates(from_date, url)
+    try:
+        date_value = get_dates(from_date, url)
+    except Exception as e:
+        print("Error: Date in the past" + str(e))
+        return None
 
     completion = client.chat.completions.create(
       model=model,
@@ -187,6 +192,7 @@ def get_weather_data(x, y, from_date, to_date):
     extracted_json = json.loads(completion_message_content)
 
     parameters= extracted_json['required_parameters']
+    print(parameters)
 
     params = {
         'coords': f'POINT({y} {x})',

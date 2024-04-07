@@ -6,7 +6,8 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, time
+from weather import get_weather_data
 
 import mongo_calls as db
 
@@ -16,6 +17,7 @@ load_dotenv()
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
 )
+model = "gpt-4-1106-preview"
 
 default_task = {
     "title": "Example Event Title",
@@ -172,7 +174,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     
         # initial try
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=model,
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
@@ -203,7 +205,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     else:
         user_message = chat[-2]+chat[-1]
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=model,
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'yyyy-mm-dd'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'. For the activity choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other"},
@@ -231,7 +233,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     # analysis
     if not success:
         analysis = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=model,
             messages=[
                 {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a not completely filled json template. The unfilled entries are marked with 'PLEASE FILL OUT!'. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time! For longitudinal and latitudinal information, ask for the location instead. Ask as simple questions as possible."},
                 {"role": "system", "content": f"The template is: {result}"} 
@@ -240,7 +242,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         analysis_message_content = analysis.choices[0].message.content
     else:
         analysis = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=model,
             messages=[
                 {"role": "system", "content": f"Please summarize the following json describing an event and tell the user that the event creation was successfull."},
                 {"role": "system", "content": f"The json is: {result}"} 
@@ -302,7 +304,7 @@ async def propose_new_date(old_text: dict, new_proposed_date: dict):
     new_str = json.dumps(new_proposed_date)
     try:
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=model,
             messages=[
                 {"role": "system", "content": f"You are an automated system that formulates a rescheduling because the weather is bad during the original activity plan. Based on input information for an event and a new proposed time, you will write a short text where you propose the new time for the activity. An example might be: 'Due to rain during this time, you might want to reschedule your meeting for tomorrow'. Today is {datetime.now().strftime('%Y-%m-%d')}."},
                 {"role": "user", "content": f"Activity: {old_str}"},
@@ -314,13 +316,51 @@ async def propose_new_date(old_text: dict, new_proposed_date: dict):
     completion_message_content = completion.choices[0].message.content
     return {"result": completion_message_content}
 
+def convert_to_iso8601(json_dict):
+    """
+    Convert "date", "startTime", and "endTime" from a JSON dictionary into ISO 8601 format.
+    
+    :param json_dict: Dictionary containing "date", "startTime", and "endTime" keys.
+    :return: Two strings representing the start and end timestamps in ISO 8601 format.
+    """
+    # Parsing the "date" from "dd/mm/yyyy" to a datetime object
+    date = datetime.strptime(json_dict["date"], "%d/%m/%Y")
+    
+    # Parsing "startTime" and "endTime" from "hh/mm" to time objects and combining them with "date"
+    start_datetime = datetime.strptime(f'{json_dict["date"]} {json_dict["startTime"]}', "%d/%m/%Y %H:%M")
+    end_datetime = datetime.strptime(f'{json_dict["date"]} {json_dict["endTime"]}', "%d/%m/%Y %H:%M")
+
+    
+    return start_datetime, end_datetime
 
 @app.post("/weather")
-async def get_weather(weather_request: WeatherRequest):
-    # Placeholder for fetching weather data based on location and timeframe
-    # You should replace this with a call to a real weather API
-    # For demonstration, it returns an empty list
-    return {}
+async def get_weather(task: Task):
+    """
+    Input: Task
+    Output: Good/Bad
+    """
+    task = task.model_dump()
+    if task["sheltered"] is True:
+        return {"suitable": "True", "reason": "The event is indoor."}
+    from_date, to_date = convert_to_iso8601(task)
+    try:
+        weather_data = get_weather_data(task["latitude"], task["longitude"], from_date, to_date)
+    except Exception as e:
+        print(e)
+        return {"suitable": "False", "reason": "Event has already started."}
+    try:
+        completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are an automated system that checks the weather for an event. Based on the input information for the event and the weather data for this time, you will determine if the weather is suitable for the activity. You will return a response indicating whether the weather is good or bad for the event of the form {suitable: 'True / False', reason: 'reason for decision'}. In your reasoning, explain how the provided parameters impaced your decision making. Make sure to return a valid json object."},
+                {"role": "user", "content": f"Task: {task}"}, 
+                {"role": "user", "content": f"Weather data: {weather_data}"}
+            ]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    print(completion.choices[0].message.content)
+    return completion.choices[0].message.content
 
 
 @app.post("/ok")
