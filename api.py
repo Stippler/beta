@@ -438,7 +438,7 @@ async def propose_new_time(task: Task):
             print(response)
             suitable = response["suitable"]
             if suitable:
-                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M"), "answer": suitable == "True"}
+                return {"new_time": new_date.strftime("%Y-%m-%d %H:%M"), "answer": suitable}
         except Exception as e:
             raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
 
