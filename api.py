@@ -179,7 +179,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             model=model_frontend,
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. The values in the json template describe what the keys should store. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY as a string. Do not make up information that you cannnot extract from the user input. However, if you can guess the event description or if the event is indoor from its title or description, please fill out these entries. Today is {datetime.now().strftime('%Y-%m-%d')}."},
+                {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. The values in the json template describe what the keys should store. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY as a string. Do not make up information that you cannnot extract from the user input. However, if you can guess the event description or if the event is indoor from its title or description, please fill out these entries. If no information about location is given, fill in EMPTY for longitude and latitude. Today is {datetime.now().strftime('%Y-%m-%d')}."},
                 {"role": "user", "content": f"{chat[-1]}"},
                 {"role": "system", "content": f"The template is: {template_str}"} 
             ]
@@ -192,7 +192,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
             model=model_frontend,
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a question that was asked to the user and its response. Additionally you will get a json template that the user has partially filled out and a json template that describe for each entry what they need to be filled with. You will extract the information from the user response and fill out a template based on it. You return nothing other than the filled-out template in valid json format. The entries not filled by the user are marked with the word EMPTY. Any value that was EMPTY and you cannot fill in, you will leave with the word EMPTY. Do not make up information that you cannnot extract from the user input. If it is possible to guess an event description or if the event is indoor or not, please do so. For longitude and latitude, if a location is given, fill in some estimate for those values. Today is {datetime.now().strftime('%Y-%m-%d')}."},
+                {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a question that was asked to the user and its response. Additionally you will get a json template that the user has partially filled out and a json template that describe for each entry what they need to be filled with. You will extract the information from the user response and fill out a template based on it. You return nothing other than the filled-out template in valid json format. The entries not filled by the user are marked with the word EMPTY. Any value that was EMPTY and you cannot fill in, you will leave with the word EMPTY. Do not make up information that you cannnot extract from the user input. If it is possible to guess an event description or if the event is indoor or not, please do so. For longitude and latitude, if a location is given, fill in some estimate for those values. Only fill in longitude and latitude if location information is given. Today is {datetime.now().strftime('%Y-%m-%d')}."},
                 {"role": "system", "content": f"The bots question was: {bot_question}"},
                 {"role": "system", "content": f"The users answer was: {user_answer}"},
                 {"role": "system", "content": f"The initial template describing what each entry should hold is: {template_str}"},
@@ -282,6 +282,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
         task["indoor"] = str(task["indoor"])
     
     if success:
+        print(task)
         if "latitude" not in task:
             task["latitude"] = 48.42
         if "longitude" not in task:
