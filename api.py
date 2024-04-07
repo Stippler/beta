@@ -18,6 +18,7 @@ client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
 )
 model = "gpt-4-1106-preview"
+model_frontend = "gpt-3.5-turbo"
 
 default_task = {
     "title": "Example Event Title",
@@ -174,7 +175,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     
         # initial try
         completion = client.chat.completions.create(
-            model=model,
+            model=model_frontend,
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": f"You are an assistant that extracts information from text. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}."},
@@ -205,7 +206,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     else:
         user_message = chat[-2]+chat[-1]
         completion = client.chat.completions.create(
-            model=model,
+            model=model_frontend,
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": f"You are an assistant that updates a template with new information. You receive as input a text and you will extract information from it and fill out a template based on it. You return nothing other than the filled-out template in valid json format. Any value that was not already filled and you cannot fill in, you will fill with the word EMPTY. Do not make up information that you cannnot extract from the user input. Today is {datetime.now().strftime('%Y-%m-%d')}. For longitude and latitude, if a location is given, fill in some estimate for those values. date does have the format 'yyyy-mm-dd'. startTime has the format 'HH:MM'. endTime has the format 'HH:MM'. For the activity choose best fit from: coffee, drink, eat, meeting, party, running, walking, working, other"},
@@ -233,7 +234,7 @@ async def analyze_text(inter_task_and_text: UpdateTextRequest):
     # analysis
     if not success:
         analysis = client.chat.completions.create(
-            model=model,
+            model=model_frontend,
             messages=[
                 {"role": "system", "content": f"You are an assistant that asks a user to complete a json template. You receive as input a not completely filled json template. The unfilled entries are marked with 'PLEASE FILL OUT!'. You search for the first such entry and return a message to politely ask the user to give more information which you would need to fill out this entry. Do not respond with anything other than the request to the user. Only ask for one information from the user at one time! For longitudinal and latitudinal information, ask for the location instead. Ask as simple questions as possible."},
                 {"role": "system", "content": f"The template is: {result}"} 

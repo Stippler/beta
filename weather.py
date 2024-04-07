@@ -19,7 +19,7 @@ client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
 )
 
-question = "I want to go surfing tomorrow. Is this a good idea?"
+
 
 
 
@@ -158,7 +158,7 @@ def find_first_value_less_than_or_equal_to_date(date, value_list):
         return previous_element
     raise Exception('Unexpected error')
 
-def get_weather_data(x, y, from_date, to_date):
+def get_weather_data(x, y, from_date, to_date, description):
     duration = abs(to_date-from_date)
     url = None
     if duration <= timedelta(hours=3):
@@ -182,7 +182,7 @@ def get_weather_data(x, y, from_date, to_date):
       response_format={ "type": "json_object" },
       messages=[
         {"role": "system", "content": "You are an expert in predicting how good an activity is based on the weather forecast. You receive a question about a planned activity and a list of possible parameters. Decide based on the activity which parameters you require from the list to answer the query as good as possible. Make sure to only answer parameters that appear in the list. You return a json list of parameters that you need to answer the question in this form: {required_parameters: [parameter1, parameter2, ...]}. Pick only the 5 most important ones." },
-        {"role": "user", "content": f"{question}"},
+        {"role": "user", "content": f"{description}"},
         {"role": "system", "content": f"The list of parameters is: {parameters}"}
       ]
     )
