@@ -46,6 +46,8 @@ app.add_middleware(
 # Models
 class Task(BaseModel):
     taskId: Optional[int] = None
+    loading: Optional[bool] = False
+    reason: Optional[str] = ''
     title: str
     date: str
     startTime: str
