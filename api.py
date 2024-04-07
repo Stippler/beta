@@ -366,7 +366,7 @@ async def get_weather(task: Task):
         return {"suitable": "True", "reason": "The event is indoor."}
     from_date, to_date = convert_to_iso8601(task)
     try:
-        weather_data = get_weather_data(task["latitude"], task["longitude"], from_date, to_date)
+        weather_data = get_weather_data(task["latitude"], task["longitude"], from_date, to_date, task["description"])
     except Exception as e:
         print(e)
         return {"suitable": "False", "reason": "Event has already started."}
@@ -384,13 +384,59 @@ async def get_weather(task: Task):
     print(completion.choices[0].message.content)
     return completion.choices[0].message.content
 
+@app.post("/new_time")
+async def propose_new_time(task: Task):
+    task_dict = task.model_dump()  # Assuming model_dump converts the Task object into a dictionary
+    from_date, to_date = convert_to_iso8601(task_dict)
+    alternative_times = []
+    now = datetime.now()
 
-@app.post("/ok")
-async def check_weather_ok(weather_request: WeatherRequest):
-    # Placeholder for logic to determine if weather is OK for an event
-    # This could check if it will rain and decide based on that
-    # For now, returns "yes" by default
-    return {"result": "yes"}
+    # Time difference constraints
+    hours_difference = (from_date - now).total_seconds() / 3600
+    future_limit_hours = 96  # 4 days in hours
+
+    # Determine if original time is day or night
+    day_start, day_end = time(7, 0), time(19, 0)  # 7:00 to 19:00 considered as day
+    original_is_day = day_start <= from_date.time() <= day_end
+
+    # Generate alternative times within the specified constraints
+    for i in range(0, future_limit_hours - round(hours_difference), 3):
+        if i > 0:  # Ensure time is in the future
+            new_date = from_date + timedelta(hours=i)
+            new_is_day = day_start <= new_date.time() <= day_end
+            if original_is_day == new_is_day:
+                alternative_times.append(new_date)
+    for i in range(3, round(hours_difference), 3):
+        if i > 0:
+            new_date = now - timedelta(hours=i)
+            new_is_day = day_start <= new_date.time() <= day_end
+            if original_is_day == new_is_day:
+                alternative_times.append(new_date)
+    print(alternative_times)
+    # Check weather suitability for each alternative time
+    for new_date in alternative_times:
+        weather_data = get_weather_data(task_dict["latitude"], task_dict["longitude"], new_date, new_date + timedelta(hours=1), task_dict["description"])
+        try:
+            completion = client.chat.completions.create(
+                model=model,
+                response_format={ "type": "json_object" },
+                messages=[
+                    {"role": "system", "content": "You are an automated system that checks the weather for an event. Based on the input information for the event and the weather data for this time, you will determine if the weather is suitable for the activity. You will return a response indicating whether the weather is good or bad for the event of the form {suitable: 'True / False', reason: 'reason for decision'}. In your reasoning, explain how the provided parameters impaced your decision making. Make sure to return a valid json object."},
+                    {"role": "user", "content": f"Task: {task}"}, 
+                    {"role": "user", "content": f"Weather data: {weather_data}"}
+                ]
+            )
+            print(completion.choices[0].message.content)
+            response = json.loads(completion.choices[0].message.content) 
+            suitable = response["suitable"]
+            print(suitable)
+            if suitable == "True":
+                return {"new_time": new_date.strftime("%Y-%m-%dT%H:%M:%SZ"), "answer": suitable}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail= "Issue finding new time " + str(e) + "response: " + str(completion.choices[0].message.content))
+
+    return {"new_time": "No suitable time found", "answer": "No suitable time found"}
+
 
 
 # Main for running with Uvicorn
